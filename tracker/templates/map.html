@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Live Geo-tracking Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.3.1/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.3.1/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+    #map-loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      font-weight: bold;
+    }
+    #map-geolocation-error {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: red;
+      font-size: 18px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <button id="allow-geolocation">Allow location access</button>
+  <div id="map"></div>
+  <div id="map-loading">Loading map...</div>
+  <div id="map-geolocation-error">Could not get your location. Please allow location services and try again.</div>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZG9taW5pYzcwIiwiYSI6ImNrcTIxZjBndjBrZ3UydXA4Y3MwczZyZDIifQ.SkvFr88vsy5lchvgoJAkEA';
+
+    var geolocationButton = document.querySelector('#allow-geolocation');
+    var mapLoadingDiv = document.querySelector('#map-loading');
+    var geolocationErrorDiv = document.querySelector('#map-geolocation-error');
+
+    var map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [0, 0],
+      zoom: 8
+    });
+
+    var marker = new mapboxgl.Marker({
+      color: '#00704A'
+    })
+      .setLngLat([0, 0])
+      .addTo(map);
+
+    function allowGeolocation() {
+      if (navigator.geolocation) {
+        mapLoadingDiv.style.display = 'block';
+        geolocationButton.style.display = 'none';
+        navigator.geolocation.watchPosition(
+          function (position) {
+            var latitude = position.coords.latitude;
+            var longitude = position.coords.longitude;
+            var location = [longitude, latitude];
+
+            marker.setLngLat(location);
+            map.setCenter(location);
+            
+            $.ajax({
+              type: 'POST',
+              url: '{% url "track-user-location" %}',
+              data: {
+                'latitude': latitude,
+                'longitude': longitude,
+              },
+              success: function (data) {
+                console.log('User location updated successfully.');
+              }
+            });
+            
+            mapLoadingDiv.style.display = 'none';
+          },
+          function (error) {
+            geolocationErrorDiv.style.display = 'block';
+            geolocationErrorDiv.innerText = 'Could not get your location. Please allow location services and try again.';
+            mapLoadingDiv.style.display = 'none';
+          }
+        );
+      } else {
+        geolocationErrorDiv.style.display = 'block';
+        geolocationErrorDiv.innerText = 'Your device does not support geolocation.';
+        mapLoadingDiv.style.display = 'none';
+      }
+    }
+
+    geolocationButton.addEventListener('click', allowGeolocation);
+  </script>
+</body>
+</html>
